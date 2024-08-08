@@ -14,15 +14,50 @@
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 )
+
+func TestAccountCycleService2(t *testing.T) {
+	tmpl := template.Must(template.New("conf").Parse(`
+      accounts {
+        A {
+          exports [ { service: {{ . }} } ]
+          imports [ { service { subject: {{ . }}, account: B }, to: {{ . }} } ]
+        }
+        B {
+          exports [ { service: {{ . }} } ]
+          imports [ { service { subject: {{ . }}, account: A }, to: {{ . }} } ]
+        }
+      } `))
+
+	for _, tt := range []string{
+		"x.y.z",
+		"JS.API.INFO",
+		"$JS.API.INFO",
+		"$XX",
+		"$XX.*",
+	} {
+		t.Run(tt, func(t *testing.T) {
+			buf := &bytes.Buffer{}
+			if err := tmpl.ExecuteTemplate(buf, "conf", tt); err != nil {
+				t.Errorf("Unable to execute template: %v", err)
+			}
+			t.Logf("Config:%s\n", buf.String())
+			if _, err := server.ProcessConfigFile(createConfFile(t, buf.Bytes())); err == nil || !strings.Contains(err.Error(), server.ErrImportFormsCycle.Error()) {
+				t.Fatalf("Expected an error on cycle service import, got none")
+			}
+		})
+	}
+}
 
 func TestAccountCycleService(t *testing.T) {
 	conf := createConfFile(t, []byte(`
