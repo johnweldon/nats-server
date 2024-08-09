@@ -30,12 +30,12 @@ func TestAccountCycleService2(t *testing.T) {
 	tmpl := template.Must(template.New("conf").Parse(`
       accounts {
         A {
-          exports [ { service: {{ . }} } ]
-          imports [ { service { subject: {{ . }}, account: B }, to: {{ . }} } ]
+          exports [ { service: "{{ . }}" } ]
+          imports [ { service { subject: "{{ . }}", account: B }, to: "{{ . }}" } ]
         }
         B {
-          exports [ { service: {{ . }} } ]
-          imports [ { service { subject: {{ . }}, account: A }, to: {{ . }} } ]
+          exports [ { service: "{{ . }}" } ]
+          imports [ { service { subject: "{{ . }}", account: A }, to: "{{ . }}" } ]
         }
       } `))
 
@@ -53,7 +53,7 @@ func TestAccountCycleService2(t *testing.T) {
 			}
 			t.Logf("Config:%s\n", buf.String())
 			if _, err := server.ProcessConfigFile(createConfFile(t, buf.Bytes())); err == nil || !strings.Contains(err.Error(), server.ErrImportFormsCycle.Error()) {
-				t.Fatalf("Expected an error on cycle service import, got none")
+				t.Fatalf("Expected an error on cycle service import, got %v", err)
 			}
 		})
 	}
